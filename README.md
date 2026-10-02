@@ -1,4 +1,4 @@
-# KnowVis: Knowledge-Centric Visual Summarization for Video Lectures
+# KnowVis: Knowledge-Centric Visual Summarization for Video Lectures ([Paper](https://arxiv.org/pdf/2609.03742), [Dataset](https://huggingface.co/datasets/yixu-cityu/KnowVis))
 
 **KnowVis** is a framework that transforms video lectures into pedagogically grounded visual narratives.
 
