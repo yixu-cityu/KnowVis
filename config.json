@@ -1,5 +1,5 @@
 {
-    "openai_api_key": "",
+    "GEMINI_API_KEY": "YOUR_GEMINI_API_KEY",
     "target_video": {
         "local_path": "",
         "youtube_url": "https://www.youtube.com/watch?v=KS5zllVsz3I"

@@ -1,5 +1,6 @@
 from functools import cache
 from html import unescape
+from importlib import import_module
 import json
 from pathlib import Path
 import re
@@ -7,8 +8,14 @@ import re
 
 @cache
 def load_whisper_model():
-    import torch
-    import whisper
+    import shutil
+    try:
+        torch = import_module('torch')
+        whisper = import_module('whisper')
+    except ImportError as error:
+        raise RuntimeError('Transcription requires: pip install "openai-whisper>=20240930"; alternatively provide an SRT/VTT file beside the video') from error
+    if not shutil.which('ffmpeg'):
+        raise RuntimeError('Whisper requires FFmpeg on PATH; install FFmpeg or provide an SRT/VTT file')
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     return whisper.load_model("large-v3", device=device)
@@ -18,9 +25,8 @@ def transcribe_video(video_path: Path) -> Path:
     video_path = Path(video_path)
     transcript_path = video_path.with_name(f"transcribed_{video_path.stem}.srt")
     if not transcript_path.is_file():
-        from whisper.utils import get_writer
-
         model = load_whisper_model()
+        get_writer = import_module('whisper.utils').get_writer
         result = model.transcribe(
             str(video_path), fp16=model.device.type == "cuda", verbose=True
         )

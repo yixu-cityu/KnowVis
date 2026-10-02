@@ -1,7 +1,5 @@
 # KnowVis: Knowledge-Centric Visual Summarization for Video Lectures
 
-> 📢 **Notice:** The full codebase and detailed usage instructions will be updated soon
-
 **KnowVis** is a framework that transforms video lectures into pedagogically grounded visual narratives.
 
 <p align="center">
@@ -27,8 +25,39 @@ Follow these steps to run KnowVis and generate pedagogically grounded visual sum
 
 ### Input Video Format
 
+Use an `.mp4` file path o a `YouTube URL`.
+
+Then edit `config.json`:
+
+Example:
+```json
+{
+    "GEMINI_API_KEY": "YOUR_GEMINI_API_KEY",
+    "target_video": {
+        "local_path": "",
+        "youtube_url": "https://www.youtube.com/watch?v=KS5zllVsz3I"
+    }
+}
+```
+
+
 ### Environment Setup
+
+Use Python **3.11 or 3.12**.
+
+```powershell
+pip install -r requirements.txt
+```
 
 ### Run
 
+```powershell
+python run.py --config config.json
+```
+
+| Output | Contents |
+| --- | --- |
+| `knowledge_units.json` | Concept subgraph of each Knowledge Units |
+| `knowledge_units/` | Retrieved source content for each Knowledge Units |
+| `visuals/` | Generated Visual Summaries |
 

@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
 import re
+from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
+from ..common.paths import DATA_DIR, PROJECT_ROOT, resolve_path
 
 
 def get_youtube_video_id(youtube_url: str) -> str:
@@ -27,8 +29,14 @@ def get_youtube_video_id(youtube_url: str) -> str:
 
 
 def youtube_options() -> dict:
-    options = {"noplaylist": True, "quiet": False, "no_warnings": True}
-    cookie_file = Path("cookies.txt")
+    options = {
+        "noplaylist": True,
+        "quiet": False,
+        "no_warnings": False,
+        # YouTube challenge solving requires EJS and a supported JS runtime.
+        "js_runtimes": {"deno": {}, "node": {}},
+    }
+    cookie_file = PROJECT_ROOT / "cookies.txt"
     if cookie_file.is_file():
         options["cookiefile"] = str(cookie_file)
     return options
@@ -45,12 +53,13 @@ def youtube_download_transcripts(
         "subtitlesformat": subtitlesformat,
         "outtmpl": str(Path(output_dir) / f"transcript_{video_id}.%(ext)s"),
     }
-    with yt_dlp.YoutubeDL(options) as downloader:
+    # yt-dlp accepts an extensible options dict; bundled stubs expose a closed TypedDict.
+    with yt_dlp.YoutubeDL(cast(Any, options)) as downloader:
         return downloader.extract_info(video_url, download=True)
 
 
 def download_video_with_metadata(video_id, video_url, download_dir):
-    download_dir = Path(download_dir)
+    download_dir = resolve_path(download_dir)
     download_dir.mkdir(parents=True, exist_ok=True)
     video_path = download_dir / f"{video_id}.mp4"
     for language in ("en", "en-US"):
@@ -69,16 +78,20 @@ def download_video_with_metadata(video_id, video_url, download_dir):
         "outtmpl": str(video_path),
         "merge_output_format": "mp4",
     }
-    with yt_dlp.YoutubeDL(options) as downloader:
+    with yt_dlp.YoutubeDL(cast(Any, options)) as downloader:
         metadata = downloader.extract_info(video_url, download=not video_path.is_file())
     if not metadata:
         raise RuntimeError(f"Unable to retrieve video metadata: {video_url}")
     return metadata
 
 
-def prepare_raw_data(video_dir: Path | None = None, youtube_url: str = "") -> Path:
+def prepare_raw_data(video_dir: str | Path | None = None, youtube_url: str = "") -> Path:
     if video_dir:
-        video_dir = Path(video_dir).expanduser()
+        video_dir = resolve_path(video_dir)
+        if video_dir.is_file():
+            if video_dir.suffix.lower() != '.mp4':
+                raise ValueError(f"Expected an MP4 video: {video_dir}")
+            return video_dir
         if video_dir.exists() and not video_dir.is_dir():
             raise NotADirectoryError(video_dir)
         videos = sorted(
@@ -89,15 +102,21 @@ def prepare_raw_data(video_dir: Path | None = None, youtube_url: str = "") -> Pa
             raise ValueError(f"Expected one MP4 file in {video_dir}, found {len(videos)}")
         if videos:
             return videos[0]
+        if not youtube_url:
+            raise FileNotFoundError(f"No MP4 video found in {video_dir}")
+        if video_dir.suffix.lower() == '.mp4':
+            raise FileNotFoundError(f"Video file not found: {video_dir}")
 
     video_id = get_youtube_video_id(youtube_url)
     if not video_dir:
-        video_dir = Path(__file__).resolve().parent / "data" / "raw" / video_id
+        video_dir = DATA_DIR / "raw" / video_id
     video_path = video_dir / f"{video_id}.mp4"
     if video_path.is_file():
         return video_path
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     metadata = download_video_with_metadata(video_id, video_url, video_dir)
+    if not video_path.is_file():
+        raise FileNotFoundError(f"Download did not produce the expected MP4: {video_path}")
     video_info = {
         "index": video_id,
         "course_title": "",

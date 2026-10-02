@@ -6,6 +6,15 @@ import imagehash
 from PIL import Image
 
 
+def _save_slide(path: Path, frame) -> None:
+    # OpenCV's Windows filename handling can reject Unicode paths. Encoding the
+    # same PNG in memory lets pathlib perform the Unicode-aware file operation.
+    success, encoded = cv2.imencode('.png', frame)
+    if not success:
+        raise OSError(f"Unable to encode slide: {path}")
+    path.write_bytes(encoded.tobytes())
+
+
 def remove_duplicates(base_dir, raw_timestamps, hash_size=12, threshold=5):
     base_dir = Path(base_dir)
     timestamps = {name: value.copy() for name, value in raw_timestamps.items()}
@@ -48,8 +57,7 @@ def capture_slides_frame_diff(
         previous_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
         screenshot_count = 1
         filename = f"temp_{screenshot_count:03}.png"
-        if not cv2.imwrite(str(output_dir / filename), first_frame):
-            raise OSError(f"Unable to save slide: {output_dir / filename}")
+        _save_slide(output_dir / filename, first_frame)
         timestamps = {}
         frame_index = 1
         start_frame = 0
@@ -76,8 +84,7 @@ def capture_slides_frame_diff(
                 start_frame = pending_start
                 screenshot_count += 1
                 filename = f"temp_{screenshot_count:03}.png"
-                if not cv2.imwrite(str(output_dir / filename), frame):
-                    raise OSError(f"Unable to save slide: {output_dir / filename}")
+                _save_slide(output_dir / filename, frame)
                 pending_start = None
                 elapsed_frames = 0
 
@@ -100,7 +107,7 @@ def rename_files_sequentially(base_dir, filenames=None):
     rename_map = {}
     for index, old_name in enumerate(sorted(filenames, key=lambda name: (len(name), name)), 1):
         new_name = f"{index:03}.png"
-        (base_dir / old_name).rename(base_dir / new_name)
+        (base_dir / old_name).replace(base_dir / new_name)
         rename_map[old_name] = new_name
     return rename_map
 
@@ -110,7 +117,9 @@ def extract_slides(video_file_path: Path, output_dir_path: Path) -> dict:
     timestamps_path = output_dir / "slides_timestamps.json"
     if timestamps_path.is_file():
         with timestamps_path.open("r", encoding="utf-8") as file:
-            return json.load(file)
+            cached_timestamps = json.load(file)
+        if cached_timestamps and all((output_dir / name).is_file() for name in cached_timestamps):
+            return cached_timestamps
 
     output_dir.mkdir(parents=True, exist_ok=True)
     raw_timestamps = capture_slides_frame_diff(video_file_path, output_dir)
