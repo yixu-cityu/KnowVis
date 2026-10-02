@@ -1,0 +1,7 @@
+{
+    "openai_api_key": "",
+    "target_video": {
+        "local_path": "",
+        "youtube_url": "https://www.youtube.com/watch?v=KS5zllVsz3I"
+    }
+}
