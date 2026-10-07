@@ -61,3 +61,7 @@ python run.py --config config.json
 | `knowledge_units/` | Retrieved source content for each Knowledge Units |
 | `visuals/` | Generated Visual Summaries |
 
+
+### Citation
+
+TODO
